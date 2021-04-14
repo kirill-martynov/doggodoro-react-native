@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Vibration } from 'react-native';
+import BackgroundTimer from 'react-native-background-timer';
 
 import { VIBRATE_PATTERN, DEFAULT_TIME } from './homeConstants';
 
@@ -29,20 +30,20 @@ export const Home = () => {
 
   const time = convertMillisToMinutes(timer);
 
+  React.useEffect(() => {
+    if (progress > 100) {
+      BackgroundTimer.stopBackgroundTimer();
+
+      Vibration.vibrate(VIBRATE_PATTERN, false);
+
+      setIsTimerStarted(false);
+      setTimer(DEFAULT_TIME);
+      setProgress(0);
+    }
+  }, [progress]);
+
   const updateTimer = () => {
     setTimer((prevState): number => {
-      if (prevState === 0) {
-        clearInterval(interval.current);
-
-        Vibration.vibrate(VIBRATE_PATTERN, false);
-
-        setIsTimerStarted(false);
-        setTimer(DEFAULT_TIME);
-        setProgress(0);
-
-        return prevState;
-      }
-
       const timeLeft = prevState - 1000;
       const progressData = Math.abs((timeLeft * 100) / timer - 100).toFixed(2);
 
@@ -58,13 +59,17 @@ export const Home = () => {
 
       setTimer(DEFAULT_TIME);
       setProgress(0);
-      clearInterval(interval.current);
+
+      interval.current = null;
+
+      BackgroundTimer.stopBackgroundTimer();
 
       return;
     }
 
     setIsTimerStarted(true);
-    interval.current = setInterval(updateTimer, 1000);
+
+    interval.current = BackgroundTimer.runBackgroundTimer(updateTimer, 1000);
   };
 
   const handleTimer = (type: string) => {
