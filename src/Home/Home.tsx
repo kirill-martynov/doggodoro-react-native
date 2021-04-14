@@ -1,18 +1,14 @@
 import * as React from 'react';
 import { Vibration } from 'react-native';
 
+import { VIBRATE_PATTERN, DEFAULT_TIME } from './homeConstants';
+
 import { Button } from '../Core/components/Button';
 import { CircleProgress } from '../Core/components/CircleProgress';
 
-import {
-  HomeContainer,
-  ActionsContainer,
-  TimerContainer,
-  Timer,
-} from './Home.styles';
+import { Timer } from '../Timer';
 
-const DEFAULT_MINUTES = 0.3;
-const DEFAULT_TIME = DEFAULT_MINUTES * 60000;
+import { HomeContainer, ActionsContainer, TimerContainer } from './Home.styles';
 
 const convertMillisToMinutes = (millis: number) => {
   const minutes = Math.floor(millis / 60000);
@@ -38,22 +34,7 @@ export const Home = () => {
       if (prevState === 0) {
         clearInterval(interval.current);
 
-        const vibratePattern = [
-          200,
-          200,
-          200,
-          400,
-          400,
-          400,
-          600,
-          600,
-          800,
-          800,
-          1000,
-          1000,
-          1000,
-        ];
-        Vibration.vibrate(vibratePattern, false);
+        Vibration.vibrate(VIBRATE_PATTERN, false);
 
         setIsTimerStarted(false);
         setTimer(DEFAULT_TIME);
@@ -86,12 +67,39 @@ export const Home = () => {
     interval.current = setInterval(updateTimer, 1000);
   };
 
+  const handleTimer = (type: string) => {
+    if (isTimerStarted) {
+      return;
+    }
+
+    const timerInMinutes = Math.floor(timer / 60000);
+    const millisecondStep = 5 * 60000;
+
+    const isInc = type === 'inc';
+    const isDec = type === 'dec';
+    const isMax = timerInMinutes === 120 && isInc;
+    const isMin = timerInMinutes === 5 && isDec;
+
+    if (isMax || isMin) {
+      return;
+    }
+
+    if (isInc) {
+      setTimer(timer + millisecondStep);
+    }
+
+    if (isDec) {
+      setTimer(timer - millisecondStep);
+    }
+  };
+
   return (
     <HomeContainer>
       <TimerContainer>
         <CircleProgress percentage={progress} color="#216EF7" />
-        <Timer>{time}</Timer>
+        <Timer time={time} onPress={handleTimer} />
       </TimerContainer>
+
       <ActionsContainer>
         <Button isTimerStarted={isTimerStarted} onPress={handleStart} />
       </ActionsContainer>

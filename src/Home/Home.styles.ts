@@ -1,4 +1,4 @@
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
 import styled from 'styled-components/native';
 
 export const HomeContainer = styled(View)`
@@ -13,12 +13,7 @@ export const TimerContainer = styled(View)`
   justify-content: center;
 `;
 
-export const Timer = styled(Text)`
-  margin-top: 50px;
-  font-size: 52px;
-  font-weight: bold;
-`;
-
 export const ActionsContainer = styled(View)`
   margin-top: auto;
+  margin-bottom: 20px;
 `;
