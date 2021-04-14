@@ -1,13 +1,17 @@
 import * as React from 'react';
-import { View, Text, Vibration } from 'react-native';
-import styled from 'styled-components/native';
+import { Vibration } from 'react-native';
 
 import { Button } from '../Core/components/Button';
 import { CircleProgress } from '../Core/components/CircleProgress';
 
-import { HomeContainer, ActionsContainer } from './Home.styles';
+import {
+  HomeContainer,
+  ActionsContainer,
+  TimerContainer,
+  Timer,
+} from './Home.styles';
 
-const DEFAULT_MINUTES = 0.1;
+const DEFAULT_MINUTES = 0.3;
 const DEFAULT_TIME = DEFAULT_MINUTES * 60000;
 
 const convertMillisToMinutes = (millis: number) => {
@@ -71,6 +75,8 @@ export const Home = () => {
     if (isTimerStarted) {
       setIsTimerStarted(false);
 
+      setTimer(DEFAULT_TIME);
+      setProgress(0);
       clearInterval(interval.current);
 
       return;
@@ -82,13 +88,10 @@ export const Home = () => {
 
   return (
     <HomeContainer>
-      <View
-        style={{ flex: 0.8, alignItems: 'center', justifyContent: 'center' }}>
+      <TimerContainer>
         <CircleProgress percentage={progress} color="#216EF7" />
-        <Text style={{ fontSize: 52, fontWeight: 'bold', marginTop: 50 }}>
-          {time}
-        </Text>
-      </View>
+        <Timer>{time}</Timer>
+      </TimerContainer>
       <ActionsContainer>
         <Button isTimerStarted={isTimerStarted} onPress={handleStart} />
       </ActionsContainer>

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, Animated } from 'react-native';
+import { View, Animated, Easing } from 'react-native';
 import Svg, { G, Circle } from 'react-native-svg';
 
 const duration = 500;
@@ -51,7 +51,6 @@ export const CircleProgress = ({
   });
 
   const animation = (toValue: any) => {
-    console.log({ toValue })
     return Animated.timing(animatedValue, {
       toValue,
       duration,
