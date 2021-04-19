@@ -1,6 +1,7 @@
 import * as React from 'react';
-import { Vibration } from 'react-native';
-import BackgroundTimer from 'react-native-background-timer';
+import { Vibration, AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { differenceInSeconds, differenceInMilliseconds } from 'date-fns';
 
 import { VIBRATE_PATTERN, DEFAULT_TIME } from './homeConstants';
 
@@ -22,6 +23,7 @@ const convertMillisToMinutes = (millis: number) => {
 };
 
 export const Home = () => {
+  const appState = React.useRef<any>(AppState.currentState);
   const interval = React.useRef<any>(null);
 
   const [isTimerStarted, setIsTimerStarted] = React.useState<boolean>(false);
@@ -29,18 +31,6 @@ export const Home = () => {
   const [progress, setProgress] = React.useState<number>(0);
 
   const time = convertMillisToMinutes(timer);
-
-  React.useEffect(() => {
-    if (progress > 100) {
-      BackgroundTimer.stopBackgroundTimer();
-
-      Vibration.vibrate(VIBRATE_PATTERN, false);
-
-      setIsTimerStarted(false);
-      setTimer(DEFAULT_TIME);
-      setProgress(0);
-    }
-  }, [progress]);
 
   const updateTimer = () => {
     setTimer((prevState): number => {
@@ -53,23 +43,25 @@ export const Home = () => {
     });
   };
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (isTimerStarted) {
       setIsTimerStarted(false);
 
       setTimer(DEFAULT_TIME);
       setProgress(0);
 
-      interval.current = null;
-
-      BackgroundTimer.stopBackgroundTimer();
+      clearInterval(interval.current);
 
       return;
     }
 
+    const startTime = new Date().toISOString();
+
+    await AsyncStorage.setItem('@start_time', startTime);
+
     setIsTimerStarted(true);
 
-    interval.current = BackgroundTimer.runBackgroundTimer(updateTimer, 1000);
+    interval.current = setInterval(updateTimer, 1000);
   };
 
   const handleTimer = (type: string) => {
@@ -97,6 +89,56 @@ export const Home = () => {
       setTimer(timer - millisecondStep);
     }
   };
+
+  const handleAppStateChange = async (nextAppState: string) => {
+    const isAppActive =
+      appState.current.match(/inactive|background/) &&
+      nextAppState === 'active';
+
+    if (isAppActive) {
+      const elapsedTime = await getElapsedTime();
+      const updateTime = elapsedTime < 0 ? DEFAULT_TIME : elapsedTime;
+
+      console.log('elapseTime', elapsedTime);
+
+      setTimer(updateTime);
+    }
+
+    appState.current = nextAppState;
+  };
+
+  const getElapsedTime = async () => {
+    try {
+      const startTime = await AsyncStorage.getItem('@start_time');
+      const now = new Date();
+
+      const elapsedTime = differenceInMilliseconds(now, Date.parse(startTime!));
+
+      return timer - elapsedTime;
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  React.useEffect(() => {
+    if (progress > 100) {
+      clearInterval(interval.current);
+
+      Vibration.vibrate(VIBRATE_PATTERN, false);
+
+      setIsTimerStarted(false);
+      setTimer(DEFAULT_TIME);
+      setProgress(0);
+    }
+  }, [progress]);
+
+  React.useEffect(() => {
+    AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      AppState.removeEventListener('change', handleAppStateChange);
+    };
+  }, []);
 
   return (
     <HomeContainer>

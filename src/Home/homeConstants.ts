@@ -1,4 +1,4 @@
-export const DEFAULT_MINUTES = 0.1;
+export const DEFAULT_MINUTES = 0.2;
 export const DEFAULT_TIME = DEFAULT_MINUTES * 60000;
 
 export const VIBRATE_PATTERN = [1000, 1000, 2000, 1000, 2000];
