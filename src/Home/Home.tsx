@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { Vibration, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { differenceInSeconds, differenceInMilliseconds } from 'date-fns';
+import { differenceInMilliseconds } from 'date-fns';
 
 import { VIBRATE_PATTERN, DEFAULT_TIME } from './homeConstants';
+import { convertMillisToMinutes, calculateProgress } from './homeHelpers';
 
 import { Button } from '../Core/components/Button';
 import { CircleProgress } from '../Core/components/CircleProgress';
@@ -11,16 +12,6 @@ import { CircleProgress } from '../Core/components/CircleProgress';
 import { Timer } from '../Timer';
 
 import { HomeContainer, ActionsContainer, TimerContainer } from './Home.styles';
-
-const convertMillisToMinutes = (millis: number) => {
-  const minutes = Math.floor(millis / 60000);
-  const seconds = Number(((millis % 60000) / 1000).toFixed(0));
-
-  const minutesString = minutes < 10 ? `0${minutes}` : minutes;
-  const secondsString = seconds < 10 ? `0${seconds}` : seconds;
-
-  return `${minutesString}:${secondsString}`;
-};
 
 export const Home = () => {
   const appState = React.useRef<any>(AppState.currentState);
@@ -32,18 +23,36 @@ export const Home = () => {
 
   const time = convertMillisToMinutes(timer);
 
-  const updateTimer = () => {
-    setTimer((prevState): number => {
-      const timeLeft = prevState - 1000;
-      const progressData = Math.abs((timeLeft * 100) / timer - 100).toFixed(2);
+  const setDefaults = () => {
+    setIsTimerStarted(false);
+    setProgress(0);
+    setTimer(DEFAULT_TIME);
+  };
 
-      setProgress(Number(progressData));
+  const updateTimer = () => {
+    setTimer(prevState => {
+      if (prevState <= 0) {
+        clearInterval(interval.current);
+
+        interval.current = null;
+
+        Vibration.vibrate(VIBRATE_PATTERN, false);
+
+        setDefaults();
+
+        return prevState;
+      }
+
+      const timeLeft = prevState - 1000;
+      const progressValue = calculateProgress(timeLeft, timer);
+
+      setProgress(Number(progressValue));
 
       return timeLeft;
     });
   };
 
-  const handleStart = async () => {
+  const onPressStart = async () => {
     if (isTimerStarted) {
       setIsTimerStarted(false);
 
@@ -51,6 +60,8 @@ export const Home = () => {
       setProgress(0);
 
       clearInterval(interval.current);
+
+      interval.current = null;
 
       return;
     }
@@ -95,13 +106,22 @@ export const Home = () => {
       appState.current.match(/inactive|background/) &&
       nextAppState === 'active';
 
-    if (isAppActive) {
+    if (isAppActive && interval.current) {
       const elapsedTime = await getElapsedTime();
-      const updateTime = elapsedTime < 0 ? DEFAULT_TIME : elapsedTime;
 
-      console.log('elapseTime', elapsedTime);
+      if (elapsedTime <= 0 && interval.current) {
+        clearInterval(interval.current);
 
-      setTimer(updateTime);
+        interval.current = null;
+
+        setProgress(100);
+        setTimer(0);
+
+        return;
+      }
+
+      setProgress(Number(calculateProgress(elapsedTime, timer)));
+      setTimer(elapsedTime);
     }
 
     appState.current = nextAppState;
@@ -112,25 +132,19 @@ export const Home = () => {
       const startTime = await AsyncStorage.getItem('@start_time');
       const now = new Date();
 
-      const elapsedTime = differenceInMilliseconds(now, Date.parse(startTime!));
+      const differenceInMillis = differenceInMilliseconds(
+        now,
+        Date.parse(startTime!),
+      );
+      const elapsedTime = timer - differenceInMillis;
 
-      return timer - elapsedTime;
+      return Math.round(elapsedTime / 1000) * 1000;
     } catch (error) {
       console.error(error);
+
+      return 0;
     }
   };
-
-  React.useEffect(() => {
-    if (progress > 100) {
-      clearInterval(interval.current);
-
-      Vibration.vibrate(VIBRATE_PATTERN, false);
-
-      setIsTimerStarted(false);
-      setTimer(DEFAULT_TIME);
-      setProgress(0);
-    }
-  }, [progress]);
 
   React.useEffect(() => {
     AppState.addEventListener('change', handleAppStateChange);
@@ -148,7 +162,7 @@ export const Home = () => {
       </TimerContainer>
 
       <ActionsContainer>
-        <Button isTimerStarted={isTimerStarted} onPress={handleStart} />
+        <Button isTimerStarted={isTimerStarted} onPress={onPressStart} />
       </ActionsContainer>
     </HomeContainer>
   );
